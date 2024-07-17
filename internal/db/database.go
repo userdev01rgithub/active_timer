@@ -18,29 +18,32 @@ func NewDatabase(dataSourceName string, logger *log.Logger) *Database {
 		logger.Info("Failed to open database: " + err.Error())
 	}
 
-	// Создаем таблицу для сессий, если ее нет
-	createTableSQL := `CREATE TABLE IF NOT EXISTS sessions (
-		"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,		
+	createSessionsTableSQL := `CREATE TABLE IF NOT EXISTS sessions (
+		"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"timestamp" DATETIME DEFAULT CURRENT_TIMESTAMP,
+		"duration" INTEGER
+	);`
+
+	_, err = db.Exec(createSessionsTableSQL)
+	if err != nil {
+		logger.Info("Failed to create sessions table: " + err.Error())
+	}
+
+	createActiveWindowsTableSQL := `CREATE TABLE IF NOT EXISTS active_windows (
+		"id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
+		"session_id" INTEGER,
+		"window_title" TEXT,
 		"timestamp" DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
-	_, err = db.Exec(createTableSQL)
+
+	_, err = db.Exec(createActiveWindowsTableSQL)
 	if err != nil {
-		logger.Info("Failed to create table: " + err.Error())
+		logger.Info("Failed to create active_windows table: " + err.Error())
 	}
 
 	return &Database{DB: db, logger: logger}
 }
 
-func (d *Database) Close() {
-	if err := d.DB.Close(); err != nil {
-		d.logger.Info("Failed to close database: " + err.Error())
-	}
-}
-
-func (d *Database) AddSession() error {
-	_, err := d.DB.Exec("INSERT INTO sessions (timestamp) VALUES (CURRENT_TIMESTAMP)")
-	if err != nil {
-		d.logger.Info("Failed to insert session: " + err.Error())
-	}
-	return err
+func (database *Database) Close() {
+	database.DB.Close()
 }
