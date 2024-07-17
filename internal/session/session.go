@@ -1,9 +1,12 @@
 package session
 
 import (
+	"fmt"
+	"os/exec"
+	"runtime"
+	"strings"
 	"time"
 
-	"github.com/shirou/gopsutil/process"
 	"github.com/userdev01rgithub/active_timer/internal/db"
 	"github.com/userdev01rgithub/active_timer/internal/log"
 )
@@ -55,9 +58,13 @@ func StopSession(logger *log.Logger, database *db.Database) {
 
 func updateActiveWindow(logger *log.Logger, database *db.Database) {
 	for sessionStarted {
-		activeWindows := getActiveWindowTitles(logger)
+		activeWindow, err := getActiveWindowTitle()
+		if err != nil {
+			logger.Info("Failed to get active window title: " + err.Error())
+		}
+
 		insertActiveWindowSQL := `INSERT INTO active_windows (session_id, window_title, timestamp) VALUES (?, ?, ?)`
-		_, err := database.DB.Exec(insertActiveWindowSQL, sessionID, activeWindows, time.Now())
+		_, err = database.DB.Exec(insertActiveWindowSQL, sessionID, activeWindow, time.Now())
 		if err != nil {
 			logger.Info("Failed to insert active window: " + err.Error())
 		}
@@ -65,21 +72,41 @@ func updateActiveWindow(logger *log.Logger, database *db.Database) {
 	}
 }
 
-func getActiveWindowTitles(logger *log.Logger) string {
-	processList, err := process.Processes()
+func getActiveWindowTitle() (string, error) {
+	switch runtime.GOOS {
+	case "windows":
+		return getActiveWindowWindows()
+	case "darwin":
+		return getActiveWindowMac()
+	case "linux":
+		return getActiveWindowLinux()
+	default:
+		return "", fmt.Errorf("unsupported platform")
+	}
+}
+
+func getActiveWindowWindows() (string, error) {
+
+	return "TODO: ", nil
+}
+
+func getActiveWindowMac() (string, error) {
+	return "", nil
+}
+
+func getActiveWindowLinux() (string, error) {
+	cmd := exec.Command("xdotool", "getactivewindow", "getwindowname")
+	output, err := cmd.Output()
 	if err != nil {
-		logger.Info("Failed to get process list: " + err.Error())
-		return ""
+		return "", fmt.Errorf("failed to get active window title: %v", err)
 	}
 
-	activeWindows := ""
-	for _, proc := range processList {
-		name, err := proc.Name()
-		if err == nil {
-			activeWindows += name + "; "
-		}
+	title := strings.TrimSpace(string(output))
+	if title == "" {
+		return "", fmt.Errorf("no active window title found")
 	}
-	return activeWindows
+
+	return title, nil
 }
 
 func GetStartTime() time.Time {

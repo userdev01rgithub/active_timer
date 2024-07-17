@@ -1,6 +1,9 @@
 package app
 
 import (
+	"os"
+	"path/filepath"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -12,7 +15,15 @@ import (
 )
 
 func Run(logger *log.Logger, database *db.Database) {
-	a := app.New()
+	a := app.NewWithID("com.userdev01rgithub.active_timer")
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		logger.Info("Failed to get home directory: " + err.Error())
+		return
+	}
+	preferencesPath := filepath.Join(homeDir, ".config", "myapp", "preferences.json")
+	a.Preferences().SetString("preferencesPath", preferencesPath)
+
 	w := a.NewWindow("SysTray")
 
 	if desk, ok := a.(desktop.App); ok {
